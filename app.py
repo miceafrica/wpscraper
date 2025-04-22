@@ -18,7 +18,93 @@ HEADERS = {
     "DNT": "1"
 }
 
-HTML_FORM = """...TRUNCATED FOR BREVITY (included in the actual app.py)..."""  # The full HTML form is in the canvas content
+HTML_FORM = """
+<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"UTF-8\">
+  <title>WordPress Scraper</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f9f9f9; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; }
+    label { display: block; margin-top: 10px; }
+    input[type=text], input[type=number] { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 20px; padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #45a049; }
+    #loading { display: none; margin-top: 20px; color: #444; font-style: italic; }
+    .post { border-bottom: 1px solid #ccc; padding: 10px 0; }
+    .post img { max-width: 100px; display: block; margin-bottom: 5px; }
+    .download-links { margin-top: 20px; }
+    .download-links a { display: inline-block; margin-right: 15px; }
+    .error { color: red; margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>WordPress Scraper</h1>
+  <form id=\"scrape-form\" action=\"/scrape\" method=\"post\">
+    <label>Base URL:
+      <input name=\"url\" required value=\"https://techpoint.africa/subject/startups/\">
+    </label>
+    <label>Filename:
+      <input name=\"filename\" value=\"\">
+    </label>
+    <label>Max Pages (0 = all):
+      <input name=\"max_pages\" type=\"number\" min=\"0\" value=\"5\">
+    </label>
+    <label><input name=\"include_content\" type=\"checkbox\" checked> Include Full Content?</label>
+    <label><input name=\"save_csv\" type=\"checkbox\" checked> Save as CSV?</label>
+    <button type=\"submit\">Start Scraping</button>
+  </form>
+  <div id=\"loading\">⏳ Scraping in progress... please wait.</div>
+  <div class=\"error\" id=\"error\"></div>
+  <div class=\"download-links\" id=\"downloads\"></div>
+  <div id=\"results\"></div>
+  <script>
+    const form = document.getElementById('scrape-form');
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+    const downloads = document.getElementById('downloads');
+    const error = document.getElementById('error');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loading.style.display = 'block';
+      results.innerHTML = '';
+      downloads.innerHTML = '';
+      error.textContent = '';
+      const formData = new FormData(form);
+      try {
+        const response = await fetch('/scrape', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        loading.style.display = 'none';
+        if (data.error) {
+          error.textContent = data.error;
+        } else if (data.posts) {
+          data.posts.forEach(post => {
+            const div = document.createElement('div');
+            div.className = 'post';
+            div.innerHTML = `<h3><a href="${post.url}" target="_blank">${post.title}</a></h3>` +
+                            (post.featured_image ? `<img src="${post.featured_image}" alt="Image">` : '') +
+                            `<p>${post.summary || ''}</p>`;
+            results.appendChild(div);
+          });
+          downloads.innerHTML = `
+            <strong>Download:</strong>
+            <a href="/download/${data.file}" download>JSON File</a>
+            ${data.csv_file ? `<a href="/download/${data.csv_file}" download>CSV File</a>` : ''}
+          `;
+        }
+      } catch (err) {
+        loading.style.display = 'none';
+        error.textContent = 'An unexpected error occurred.';
+      }
+    });
+  </script>
+</body>
+</html>
+"""  # Keep the form unchanged
 
 @app.route("/", methods=["GET"])
 def form():
